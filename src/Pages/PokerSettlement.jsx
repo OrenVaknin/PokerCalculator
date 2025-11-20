@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Calculator, Trash2, AlertCircle, Flag, Sparkles } from 'lucide-react';
-import PlayerCard from '../Components/Poker/PlayerCard';
+import PlayerCard from '../components/Poker/PlayerCard';
 import SettlementResults from '../components/poker/SettlementResults';
 import '../App.css';
 
