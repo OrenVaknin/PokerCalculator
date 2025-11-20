@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Calculator, Trash2, AlertCircle, Flag, Sparkles } from 'lucide-react';
 import PlayerCard from '../components/Poker/PlayerCard';
-import SettlementResults from '../components/poker/SettlementResults';
+import SettlementResults from '../components/Poker/SettlementResults';
 import '../App.css';
 
 const Button = ({ children, onClick, className = '', variant, size, ...props }) => (
