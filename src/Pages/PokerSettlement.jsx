@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Calculator, Trash2, AlertCircle, Flag, Sparkles } from 'lucide-react';
+import { Plus, Calculator, Trash2, AlertCircle, Flag, Sparkles, AlertTriangle } from 'lucide-react';
 import PlayerCard from '../components/Poker/PlayerCard';
 import SettlementResults from '../components/Poker/SettlementResults';
 import '../App.css';
@@ -23,6 +23,8 @@ const translations = {
     reset: 'אפס הכל',
     errorFillAll: 'אנא מלא את כל פרטי השחקנים',
     errorBalance: 'הכסף לא מאוזן! כניסה: ₪{buyIn}, יציאה: ₪{cashOut}',
+    errorBalanceSuggestion: 'אנא בדוק את הסכומים או המשך בכל זאת',
+    proceedAnyway: 'המשך בכל זאת',
     currency: '₪'
   },
   en: {
@@ -33,6 +35,8 @@ const translations = {
     reset: 'Reset All',
     errorFillAll: 'Please fill in all player details',
     errorBalance: 'Money doesn\'t balance! Buy-in: ${buyIn}, Cash-out: ${cashOut}',
+    errorBalanceSuggestion: 'Please check the amounts or proceed anyway',
+    proceedAnyway: 'Proceed Anyway',
     currency: '$'
   }
 };
@@ -46,6 +50,7 @@ export default function PokerSettlement() {
   ]);
   const [settlements, setSettlements] = useState(null);
   const [error, setError] = useState('');
+  const [balanceMismatch, setBalanceMismatch] = useState(null);
 
   const t = translations[language];
   const isRTL = language === 'he';
@@ -75,32 +80,71 @@ export default function PokerSettlement() {
     ));
     setSettlements(null);
     setError('');
+    setBalanceMismatch(null);
   };
 
-  const calculateSettlements = () => {
+  const calculateSettlementsWithAdjustment = (adjustBalances = false) => {
     const invalidPlayers = players.filter(p => 
       !p.name.trim() || p.buyIn === '' || p.cashOut === ''
     );
     
     if (invalidPlayers.length > 0) {
       setError(t.errorFillAll);
+      setBalanceMismatch(null);
       return;
     }
 
     const totalBuyIn = players.reduce((sum, p) => sum + parseFloat(p.buyIn || 0), 0);
     const totalCashOut = players.reduce((sum, p) => sum + parseFloat(p.cashOut || 0), 0);
+    const difference = totalCashOut - totalBuyIn;
 
-    if (Math.abs(totalBuyIn - totalCashOut) > 0.01) {
+    // Check for balance mismatch
+    if (Math.abs(difference) > 0.01 && !adjustBalances) {
+      setBalanceMismatch({
+        totalBuyIn,
+        totalCashOut,
+        difference
+      });
       setError(t.errorBalance
         .replace('{buyIn}', totalBuyIn.toFixed(2))
         .replace('{cashOut}', totalCashOut.toFixed(2)));
       return;
     }
 
-    const balances = players.map(p => ({
+    // Calculate balances
+    let balances = players.map(p => ({
       name: p.name,
       balance: parseFloat(p.cashOut) - parseFloat(p.buyIn)
     }));
+
+    // Adjust balances if there's a mismatch and user chose to proceed
+    if (adjustBalances && Math.abs(difference) > 0.01) {
+      if (difference > 0) {
+        // Too much money: split extra between losers
+        const losers = balances.filter(b => b.balance < -0.01);
+        if (losers.length > 0) {
+          const extraPerLoser = difference / losers.length;
+          balances = balances.map(b => {
+            if (b.balance < -0.01) {
+              return { ...b, balance: b.balance + extraPerLoser };
+            }
+            return b;
+          });
+        }
+      } else {
+        // Too little money: take equally from winners
+        const winners = balances.filter(b => b.balance > 0.01);
+        if (winners.length > 0) {
+          const reductionPerWinner = Math.abs(difference) / winners.length;
+          balances = balances.map(b => {
+            if (b.balance > 0.01) {
+              return { ...b, balance: b.balance - reductionPerWinner };
+            }
+            return b;
+          });
+        }
+      }
+    }
 
     const creditors = balances
       .filter(b => b.balance > 0.01)
@@ -141,6 +185,15 @@ export default function PokerSettlement() {
       }))
     });
     setError('');
+    setBalanceMismatch(null);
+  };
+
+  const calculateSettlements = () => {
+    calculateSettlementsWithAdjustment(false);
+  };
+
+  const proceedAnyway = () => {
+    calculateSettlementsWithAdjustment(true);
   };
 
   const resetAll = () => {
@@ -151,6 +204,7 @@ export default function PokerSettlement() {
     ]);
     setSettlements(null);
     setError('');
+    setBalanceMismatch(null);
   };
 
   return (
@@ -218,9 +272,25 @@ export default function PokerSettlement() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-900/40 backdrop-blur-sm border-2 border-red-600/60 rounded-xl flex items-center gap-3 relative z-10 animate-pulse">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-            <p className="text-red-200 font-medium">{error}</p>
+          <div className="mb-6 p-4 bg-red-900/40 backdrop-blur-sm border-2 border-red-600/60 rounded-xl relative z-10">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-red-200 font-medium mb-2">{error}</p>
+                {balanceMismatch && (
+                  <div className="mt-3">
+                    <p className="text-red-300 text-sm mb-3">{t.errorBalanceSuggestion}</p>
+                    <button
+                      onClick={proceedAnyway}
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-600/80 hover:bg-amber-500 text-slate-900 font-semibold rounded-lg transition-all duration-300 hover:scale-105"
+                    >
+                      <Calculator className="w-4 h-4" />
+                      {t.proceedAnyway}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
