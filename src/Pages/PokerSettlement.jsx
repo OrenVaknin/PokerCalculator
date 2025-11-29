@@ -119,26 +119,33 @@ export default function PokerSettlement() {
 
     // Adjust balances if there's a mismatch and user chose to proceed
     if (adjustBalances && Math.abs(difference) > 0.01) {
-      if (difference > 0) {
-        // Too much money: split extra between losers
-        const losers = balances.filter(b => b.balance < -0.01);
-        if (losers.length > 0) {
-          const extraPerLoser = difference / losers.length;
+      const winners = balances.filter(b => b.balance > 0.01);
+      const losers = balances.filter(b => b.balance < -0.01);
+      const totalWinnings = winners.reduce((sum, w) => sum + w.balance, 0);
+      const totalLosses = losers.reduce((sum, l) => sum + Math.abs(l.balance), 0);
+      
+      if (difference < 0) {
+        // More money entered than left (totalBuyIn > totalCashOut)
+        // Reduce losers' losses proportionally to match winners' gains
+        // Winners keep their gains, losers pay less
+        if (losers.length > 0 && totalLosses > 0) {
+          const scaleFactor = totalWinnings / totalLosses;
           balances = balances.map(b => {
             if (b.balance < -0.01) {
-              return { ...b, balance: b.balance + extraPerLoser };
+              return { ...b, balance: b.balance * scaleFactor };
             }
             return b;
           });
         }
       } else {
-        // Too little money: take equally from winners
-        const winners = balances.filter(b => b.balance > 0.01);
-        if (winners.length > 0) {
-          const reductionPerWinner = Math.abs(difference) / winners.length;
+        // Less money entered than left (totalBuyIn < totalCashOut)
+        // Reduce winners' gains proportionally to match losers' losses
+        // Losers keep their losses, winners get less
+        if (winners.length > 0 && totalWinnings > 0) {
+          const scaleFactor = totalLosses / totalWinnings;
           balances = balances.map(b => {
             if (b.balance > 0.01) {
-              return { ...b, balance: b.balance - reductionPerWinner };
+              return { ...b, balance: b.balance * scaleFactor };
             }
             return b;
           });
