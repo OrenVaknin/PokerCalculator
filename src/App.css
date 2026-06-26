@@ -49,14 +49,18 @@
 
 /* Glow effects */
 .glow-amber {
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.45);
 }
 
 .glow-green {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.45);
 }
 
 .glow-red {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 24px rgba(244, 63, 94, 0.45);
+}
+
+.glow-teal {
+  box-shadow: 0 0 28px rgba(45, 212, 191, 0.25);
 }
 
